@@ -17,12 +17,12 @@ type MergedZoneData struct {
 
 func main() {
 
-	resp := getallhostedzones()
+	allzones := getallhostedzones()
 
 	//base param struct intialise
 	record_params := &route53.ListResourceRecordSetsInput{}
 
-	for _, res := range resp.HostedZones {
+	for _, res := range allzones.HostedZones {
 
 		fmt.Println("Found HostedZone: ", *res.Name)
 		zone := &MergedZoneData{}
@@ -37,15 +37,16 @@ func main() {
 
 		//check results paginated
 		is_trunc := *zone.ZoneRecordSet.IsTruncated
+
 		for is_trunc == true {
 
-			//DEBUG
+			//debug
 			//fmt.Println("Paramaters: ", record_params)
 
 			results := &MergedZoneData{}
 			results.ZoneRecordSet = *getdnsrecords(record_params)
 
-			//APPEND RESULTS
+			//append results
 			zone.ZoneRecordSet.ResourceRecordSets = append(zone.ZoneRecordSet.ResourceRecordSets, results.ZoneRecordSet.ResourceRecordSets...)
 
 			record_params.StartRecordName = results.ZoneRecordSet.NextRecordName
@@ -54,11 +55,11 @@ func main() {
 			if !*results.ZoneRecordSet.IsTruncated {
 				is_trunc = false
 			}
-			//DEBUG
+			//debug
 			//fmt.Println("Still Truncated: ", is_trunc)
 		}
 		// write JSON to file
-		fmt.Println("Array Length: ", len(zone.ZoneRecordSet.ResourceRecordSets))
+		fmt.Println("Number of records found: ", len(zone.ZoneRecordSet.ResourceRecordSets))
 		outputJSONfile(*res.Name+"json", *zone)
 	}
 }
@@ -76,7 +77,6 @@ func getallhostedzones() (resp *route53.ListHostedZonesByNameOutput) {
 	if err != nil {
 		panic(err)
 	}
-
 	return resp
 }
 
@@ -106,5 +106,4 @@ func outputJSONfile(filename string, contents MergedZoneData) {
 		fmt.Println(err.Error())
 		return
 	}
-	//fmt.Println(string(contents))
 }
