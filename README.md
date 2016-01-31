@@ -4,7 +4,7 @@
 Export AWS route53 hosted zones and DNS record set. Each hosted zone is saved as a seperate JSON file that contains the hosted zone informatin and complete dns record set.
 
 ##Build
-- clone the repo
+-  Clone the repo
 -  Install AWS GO SDK: 
   ```
   go get -u github.com/aws/aws-sdk-go
