@@ -5,11 +5,12 @@ Export AWS route53 hosted zones and DNS record set. Each hosted zone is saved as
 
 ##Build
 - clone the repo
--  Install AWS GO SDK
+-  Install AWS GO SDK: 
   ```
   go get -u github.com/aws/aws-sdk-go
   ```
-- go build aws_route53_util.go
+-  Build: 
+  ``` go build aws_route53_util.go ```
 
 ##Usage
 Make sure that AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY enviromental vars have been set
