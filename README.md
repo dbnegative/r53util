@@ -1,4 +1,4 @@
-# AWS route53 utility
+# AWS Route53 Utility
 
 ### Current Functionality
 Export AWS route53 hosted zones and DNS record set. Each hosted zone is saved as a seperate JSON file that contains the hosted zone informatin and complete dns record set.
@@ -18,7 +18,7 @@ Make sure that AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY enviromental vars hav
 ```
 ./aws_route53_util export-all
 ```
-### Export single hosted zone
+### Export single hosted zone to file
 ```
 ./aws_route53_util export [domain] [output filename]
 ./aws_route53_util export example.com /tmp/mydata.json
