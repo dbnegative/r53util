@@ -1,28 +1,65 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/route53"
+	"io/ioutil"
 )
 
+//Custom Struct containing the HostedZone information and Record sets
 type MergedZoneData struct {
 	ZoneFileInfo  route53.HostedZone
 	ZoneRecordSet route53.ListResourceRecordSetsOutput
 }
 
 func main() {
+
 	resp := getallhostedzones()
 
+	//base param struct intialise
+	record_params := &route53.ListResourceRecordSetsInput{}
+
 	for _, res := range resp.HostedZones {
-		//depointer the string
-		fmt.Println("----BEGIN----")
-		data := &MergedZoneData{}
-		data.ZoneFileInfo = *res
-		data.ZoneRecordSet = *getdnsrecords(*res.Id)
-		fmt.Println(data)
-		fmt.Println("----END----")
+
+		fmt.Println("Found HostedZone: ", *res.Name)
+		zone := &MergedZoneData{}
+		zone.ZoneFileInfo = *res
+
+		record_params.HostedZoneId = res.Id
+		zone.ZoneRecordSet = *getdnsrecords(record_params)
+
+		//set params for pagination
+		record_params.StartRecordName = zone.ZoneRecordSet.NextRecordName
+		record_params.StartRecordType = zone.ZoneRecordSet.NextRecordType
+
+		//check results paginated
+		is_trunc := *zone.ZoneRecordSet.IsTruncated
+		for is_trunc == true {
+
+			//DEBUG
+			//fmt.Println("Paramaters: ", record_params)
+
+			results := &MergedZoneData{}
+			results.ZoneRecordSet = *getdnsrecords(record_params)
+
+			//APPEND RESULTS
+			zone.ZoneRecordSet.ResourceRecordSets = append(zone.ZoneRecordSet.ResourceRecordSets, results.ZoneRecordSet.ResourceRecordSets...)
+
+			record_params.StartRecordName = results.ZoneRecordSet.NextRecordName
+			record_params.StartRecordType = results.ZoneRecordSet.NextRecordType
+
+			if !*results.ZoneRecordSet.IsTruncated {
+				is_trunc = false
+			}
+			//DEBUG
+			//fmt.Println("Still Truncated: ", is_trunc)
+		}
+		// write JSON to file
+		fmt.Println("Array Length: ", len(zone.ZoneRecordSet.ResourceRecordSets))
+		outputJSONfile(*res.Name+"json", *zone)
 	}
 }
 
@@ -43,16 +80,9 @@ func getallhostedzones() (resp *route53.ListHostedZonesByNameOutput) {
 	return resp
 }
 
-func getdnsrecords(hostedzoneid string) (resp *route53.ListResourceRecordSetsOutput) {
+func getdnsrecords(params *route53.ListResourceRecordSetsInput) (resp *route53.ListResourceRecordSetsOutput) {
 	svc := route53.New(session.New(), &aws.Config{Region: aws.String("eu-west-1")})
 
-	params := &route53.ListResourceRecordSetsInput{
-		HostedZoneId: aws.String(hostedzoneid), // Required
-		MaxItems:     aws.String("100"),
-		//StartRecordIdentifier: aws.String("ResourceRecordSetIdentifier"),
-		//StartRecordName:       aws.String("DNSName"),
-		//StartRecordType:       aws.String("RRType"),
-	}
 	resp, err := svc.ListResourceRecordSets(params)
 
 	if err != nil {
@@ -61,7 +91,20 @@ func getdnsrecords(hostedzoneid string) (resp *route53.ListResourceRecordSetsOut
 		fmt.Println(err.Error())
 		return
 	}
-
 	return resp
+}
 
+func outputJSONfile(filename string, contents MergedZoneData) {
+	output, err := json.MarshalIndent(contents, "", " ")
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	err = ioutil.WriteFile(filename, output, 0644)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	//fmt.Println(string(contents))
 }
