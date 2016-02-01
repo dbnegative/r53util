@@ -40,6 +40,10 @@ Done:
 			}
 			exportrecord(arg[2], "")
 			break Done
+		case "list":
+			if arg_length == 3 {
+
+			}
 		case "help":
 			printhelp()
 			break Done
@@ -133,47 +137,54 @@ func inputJSONfile(filename string) (resp []byte) {
 	return resp
 }
 
+func getpaginatedresults(hostzone *route53.HostedZone) (zoneoutput *MergedZoneData) {
+	//base param struct intialise
+	recordset_query_params := &route53.ListResourceRecordSetsInput{}
+	zone := &MergedZoneData{}
+
+	//zone := &MergedZoneData{}
+	zone.ZoneFileInfo = *hostzone
+
+	recordset_query_params.HostedZoneId = hostzone.Id
+	zone.ZoneRecordSet = *getdnsrecordset(recordset_query_params)
+
+	//set params for pagination
+	recordset_query_params.StartRecordName = zone.ZoneRecordSet.NextRecordName
+	recordset_query_params.StartRecordType = zone.ZoneRecordSet.NextRecordType
+
+	//check results paginated
+	is_trunc := *zone.ZoneRecordSet.IsTruncated
+
+	for is_trunc == true {
+
+		results := &MergedZoneData{}
+		results.ZoneRecordSet = *getdnsrecordset(recordset_query_params)
+
+		//append results
+		zone.ZoneRecordSet.ResourceRecordSets = append(zone.ZoneRecordSet.ResourceRecordSets, results.ZoneRecordSet.ResourceRecordSets...)
+
+		recordset_query_params.StartRecordName = results.ZoneRecordSet.NextRecordName
+		recordset_query_params.StartRecordType = results.ZoneRecordSet.NextRecordType
+
+		if !*results.ZoneRecordSet.IsTruncated {
+			is_trunc = false
+		}
+	}
+
+	return zone
+
+}
+
 func exportrecords() {
 	allzones := getallhostedzones()
 
-	//base param struct intialise
-	recordset_query_params := &route53.ListResourceRecordSetsInput{}
-
-	for _, res := range allzones.HostedZones {
-
-		fmt.Println("Found HostedZone: ", *res.Name)
-		zone := &MergedZoneData{}
-		zone.ZoneFileInfo = *res
-
-		recordset_query_params.HostedZoneId = res.Id
-		zone.ZoneRecordSet = *getdnsrecordset(recordset_query_params)
-
-		//set params for pagination
-		recordset_query_params.StartRecordName = zone.ZoneRecordSet.NextRecordName
-		recordset_query_params.StartRecordType = zone.ZoneRecordSet.NextRecordType
-
-		//check results paginated
-		is_trunc := *zone.ZoneRecordSet.IsTruncated
-
-		for is_trunc == true {
-
-			results := &MergedZoneData{}
-			results.ZoneRecordSet = *getdnsrecordset(recordset_query_params)
-
-			//append results
-			zone.ZoneRecordSet.ResourceRecordSets = append(zone.ZoneRecordSet.ResourceRecordSets, results.ZoneRecordSet.ResourceRecordSets...)
-
-			recordset_query_params.StartRecordName = results.ZoneRecordSet.NextRecordName
-			recordset_query_params.StartRecordType = results.ZoneRecordSet.NextRecordType
-
-			if !*results.ZoneRecordSet.IsTruncated {
-				is_trunc = false
-			}
-		}
-
+	for k, v := range allzones.HostedZones {
+		mzd := getpaginatedresults(allzones.HostedZones[k])
 		// write JSON to file
-		fmt.Println("Number of records found: ", len(zone.ZoneRecordSet.ResourceRecordSets))
-		outputJSONfile(*res.Name+"json", *zone)
+		fmt.Println("Found Host Zone: ", *v.Name)
+		fmt.Println("Number of records found: ", len(mzd.ZoneRecordSet.ResourceRecordSets))
+		outputJSONfile(*v.Name+"json", *mzd)
+		fmt.Println("Created file: ", *v.Name+"json")
 	}
 }
 
@@ -181,43 +192,19 @@ func exportrecord(zonename string, filename string) {
 
 	zone := gethostedzone(zonename)
 
-	//base param struct intialise
-	recordset_query_params := &route53.ListResourceRecordSetsInput{}
+	for k, v := range zone.HostedZones {
+		mzd := getpaginatedresults(zone.HostedZones[k])
+		// write JSON to file
+		fmt.Println("Found Host Zone: ", *v.Name)
+		fmt.Println("Number of records found: ", len(mzd.ZoneRecordSet.ResourceRecordSets))
 
-	mzd := &MergedZoneData{}
-	for _, hostzonedata := range zone.HostedZones {
-		mzd.ZoneFileInfo = *hostzonedata
-		recordset_query_params.HostedZoneId = mzd.ZoneFileInfo.Id
-		mzd.ZoneRecordSet = *getdnsrecordset(recordset_query_params)
-
-		//set params for pagination
-		recordset_query_params.StartRecordName = mzd.ZoneRecordSet.NextRecordName
-		recordset_query_params.StartRecordType = mzd.ZoneRecordSet.NextRecordType
-
-		//check results paginated
-		is_trunc := *mzd.ZoneRecordSet.IsTruncated
-
-		for is_trunc == true {
-
-			results := &MergedZoneData{}
-			results.ZoneRecordSet = *getdnsrecordset(recordset_query_params)
-
-			//append results
-			mzd.ZoneRecordSet.ResourceRecordSets = append(mzd.ZoneRecordSet.ResourceRecordSets, results.ZoneRecordSet.ResourceRecordSets...)
-
-			recordset_query_params.StartRecordName = results.ZoneRecordSet.NextRecordName
-			recordset_query_params.StartRecordType = results.ZoneRecordSet.NextRecordType
-
-			if !*results.ZoneRecordSet.IsTruncated {
-				is_trunc = false
-			}
+		if filename == "" {
+			outputJSONfile(*mzd.ZoneFileInfo.Name+"json", *mzd)
+			fmt.Println("Created file: ", *v.Name+"json")
+		} else {
+			outputJSONfile(filename, *mzd)
+			fmt.Println("Created file: ", filename)
 		}
-	}
-	fmt.Println("Number of records found: ", len(mzd.ZoneRecordSet.ResourceRecordSets))
-	if filename == "" {
-		outputJSONfile(*mzd.ZoneFileInfo.Name+"json", *mzd)
-	} else {
-		outputJSONfile(filename, *mzd)
 	}
 }
 
@@ -242,5 +229,26 @@ func restorehostedzone(filename string) {
 	newhostedzone.CallerReference = zonedata.ZoneFileInfo.CallerReference
 	newhostedzone.Name = zonedata.ZoneFileInfo.Name
 
+	printhumanreadable(zonedata)
+
 	//svc := route53.New(session.New(), &aws.Config{Region: aws.String("eu-west-1")})
+}
+
+func printhumanreadable(mzd *MergedZoneData) {
+	fmt.Println("---------------------------------------------------------------------------------")
+	fmt.Println("Host Zone Name: ", *mzd.ZoneFileInfo.Name, " Host Zone ID: ", *mzd.ZoneFileInfo.Id)
+	fmt.Println("Caller Reference: ", *mzd.ZoneFileInfo.CallerReference)
+	if mzd.ZoneFileInfo.Config.Comment != nil {
+		fmt.Println("Comment: ", *mzd.ZoneFileInfo.Config.Comment)
+	}
+	if mzd.ZoneFileInfo.Config.PrivateZone != nil {
+		fmt.Println("Private Zone: ", *mzd.ZoneFileInfo.Config.PrivateZone)
+	}
+	fmt.Println("---------------------------------------------------------------------------------")
+
+	for k, v := range mzd.ZoneRecordSet.ResourceRecordSets {
+		for _, v1 := range v.ResourceRecords {
+			fmt.Println(k+1, *v.Name, *v.Type, *v.TTL, *v1.Value)
+		}
+	}
 }
