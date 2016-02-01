@@ -23,12 +23,22 @@ Make sure that AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY enviromental vars hav
 ./aws_route53_util export [domain] [output filename]
 ./aws_route53_util export example.com /tmp/mydata.json
 ```
+### List all hosted zones and records in human readable format to stdout
+```
+./aws_route53_util list
+```
+### List specified host zone in human readable format to stdout
+```
+./aws_route53_util list example.com
+```
 ### Import JSON hosted zone file (Not Implemented yet)
 ```
 ./aws_route53_util import [input filename]
 ./aws_route53_util import example.com.json
 ```
 #Todo 
+- add region support currently defaulting to eu-west-1
+- list currently returns incorrect results when invalid hostzone name is supplied, should error out
+- check if host zone exists for import 
 - add import  function to import and recreate records in route53
 - better error handling
-- simplified output  
