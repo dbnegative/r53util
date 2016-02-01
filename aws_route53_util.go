@@ -42,7 +42,11 @@ Done:
 			break Done
 		case "list":
 			if arg_length == 3 {
-
+				listzone(arg[2])
+				break Done
+			} else {
+				listzone("")
+				break Done
 			}
 		case "help":
 			printhelp()
@@ -58,9 +62,10 @@ Done:
 
 func printhelp() {
 	fmt.Println("Usage: aws_route53_util [COMMAND] [OPTION] ")
-	fmt.Println(" - import [FILENAME]              *Import route53 hostzone JSON file ")
-	fmt.Println(" - export [ZONENAME] [FILENAME]   *Export route53 hostzone to a JSON file ")
-	fmt.Println(" - export-all                     *Export all route53 hostzones to JSON file ")
+	fmt.Println(" - import [FILENAME]              *Import route53 host zone JSON file ")
+	fmt.Println(" - export [ZONENAME] [FILENAME]   *Export route53 host zone to a JSON file ")
+	fmt.Println(" - list [OPTIONAL HOSTZONE]       *List all host zones or specific zone details if supplied ")
+	fmt.Println(" - export-all                     *Export all route53 host zones to JSON file ")
 }
 
 func getallhostedzones() (resp *route53.ListHostedZonesByNameOutput) {
@@ -170,11 +175,21 @@ func getpaginatedresults(hostzone *route53.HostedZone) (zoneoutput *MergedZoneDa
 			is_trunc = false
 		}
 	}
-
 	return zone
-
 }
 
+func listzone(zonename string) {
+	zone := &route53.ListHostedZonesByNameOutput{}
+	if zonename != "" {
+		zone = gethostedzone(zonename)
+	} else {
+		zone = getallhostedzones()
+	}
+	for k, _ := range zone.HostedZones {
+		mzd := getpaginatedresults(zone.HostedZones[k])
+		printhumanreadable(mzd)
+	}
+}
 func exportrecords() {
 	allzones := getallhostedzones()
 
