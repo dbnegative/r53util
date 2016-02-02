@@ -1,4 +1,4 @@
-package main
+package awsroute53util
 
 import (
 	"encoding/json"
@@ -24,53 +24,55 @@ func init() {
 	flag.StringVar(&flagRegion, "region", "", "set AWS region")
 }
 
-func main() {
-	flag.Parse()
-	arg := os.Args
-	argLength := len(arg)
+//func main() {
+//	flag.Parse()
 
-	if flagRegion != "" {
-	Done:
-		for idx, resp := range arg {
-			switch resp {
-			case "import":
-				if argLength == 3 {
-					restoreHostedZone(arg[2])
-					break Done
-				}
-			case "export-all":
-				exportRecords()
-				break Done
-			case "export":
-				if argLength == 4 {
-					fmt.Println("Exporting Single HostZone")
-					exportRecord(arg[2], arg[3])
-					break Done
-				}
-				exportRecord(arg[2], "")
-				break Done
-			case "list":
-				if argLength == 3 {
-					listZone(arg[2])
-					break Done
-				} else {
-					listZone("")
-					break Done
-				}
-			case "help":
-				printHelp()
-				break Done
-			} //end of switch
+//	arg := os.Args
+//	argLength := len(arg)
 
-			if idx == argLength-1 {
-				fmt.Println("Error: command or variable incorrect or missing")
-				printHelp()
-			}
-		}
-	} else {
-		fmt.Println("Error: Please set a region i.e --region=eu-west-1")
-	}
-}
+//	if flagRegion != "" {
+//	Done:
+//		for idx, resp := range arg {
+//			switch resp {
+//			case "import":
+//				if argLength == 3 {
+//					restoreHostedZone(arg[2])
+//					break Done
+//				}
+//			case "export-all":
+//				exportRecords()
+//				break Done
+//			case "export":
+//				if argLength == 4 {
+//					fmt.Println("Exporting Single HostZone")
+//					exportRecord(arg[2], arg[3])
+//					break Done
+//				}
+//				exportRecord(arg[2], "")
+//				break Done
+//			case "list":
+//				if argLength == 3 {
+//					listZone(arg[2])
+//					break Done
+//				} else {
+//					listZone("")
+//					break Done
+//				}
+//			case "help":
+//				printHelp()
+//				break Done
+//			} //end of switch
+
+//			if idx == argLength-1 {
+//				fmt.Println("Error: command or variable incorrect or missing")
+//				printHelp()
+//			}
+//		}
+//	} else {
+//		fmt.Println("Error: Please set a region i.e --region=eu-west-1")
+//	}
+//}
+
 func printHelp() {
 	fmt.Println("Usage: aws_route53_util --region=[AWS REGION] [COMMAND] [OPTION] ")
 	fmt.Println(" - import [FILENAME]              *Import route53 host zone JSON file ")
