@@ -2,74 +2,85 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
+	"io/ioutil"
+	"os"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/route53"
-	"io/ioutil"
-	"os"
 )
 
-//Custom Struct containing the HostedZone information and Record sets
+//MergedZoneData - Custom Struct containing the HostedZone information and Record sets
 type MergedZoneData struct {
 	ZoneFileInfo  route53.HostedZone
 	ZoneRecordSet route53.ListResourceRecordSetsOutput
 }
 
-func main() {
+var flagRegion string
 
-	arg := os.Args
-	arg_length := len(arg)
-
-Done:
-	for idx, resp := range arg {
-		switch resp {
-		case "import":
-			if arg_length == 3 {
-				restorehostedzone(arg[2])
-				break Done
-			}
-		case "export-all":
-			exportrecords()
-			break Done
-		case "export":
-			if arg_length == 4 {
-				fmt.Println("Exporting Single HostZone")
-				exportrecord(arg[2], arg[3])
-				break Done
-			}
-			exportrecord(arg[2], "")
-			break Done
-		case "list":
-			if arg_length == 3 {
-				listzone(arg[2])
-				break Done
-			} else {
-				listzone("")
-				break Done
-			}
-		case "help":
-			printhelp()
-			break Done
-		} //end of switch
-
-		if idx == arg_length-1 {
-			fmt.Println("Error: command or variable incorrect or missing")
-			printhelp()
-		}
-	}
+func init() {
+	flag.StringVar(&flagRegion, "region", "", "set AWS region")
 }
 
-func printhelp() {
-	fmt.Println("Usage: aws_route53_util [COMMAND] [OPTION] ")
+func main() {
+	flag.Parse()
+	arg := os.Args
+	argLength := len(arg)
+
+	if flagRegion != "" {
+	Done:
+		for idx, resp := range arg {
+			switch resp {
+			case "import":
+				if argLength == 3 {
+					restoreHostedZone(arg[2])
+					break Done
+				}
+			case "export-all":
+				exportRecords()
+				break Done
+			case "export":
+				if argLength == 4 {
+					fmt.Println("Exporting Single HostZone")
+					exportRecord(arg[2], arg[3])
+					break Done
+				}
+				exportRecord(arg[2], "")
+				break Done
+			case "list":
+				if argLength == 3 {
+					listZone(arg[2])
+					break Done
+				} else {
+					listZone("")
+					break Done
+				}
+			case "help":
+				printHelp()
+				break Done
+			} //end of switch
+
+			if idx == argLength-1 {
+				fmt.Println("Error: command or variable incorrect or missing")
+				printHelp()
+			}
+		}
+	} else {
+		fmt.Println("Error: Please set a region i.e --region=eu-west-1")
+	}
+}
+func printHelp() {
+	fmt.Println("Usage: aws_route53_util --region=[AWS REGION] [COMMAND] [OPTION] ")
 	fmt.Println(" - import [FILENAME]              *Import route53 host zone JSON file ")
 	fmt.Println(" - export [ZONENAME] [FILENAME]   *Export route53 host zone to a JSON file ")
 	fmt.Println(" - list [OPTIONAL HOSTZONE]       *List all host zones or specific zone details if supplied ")
 	fmt.Println(" - export-all                     *Export all route53 host zones to JSON file ")
 }
 
-func getallhostedzones() (resp *route53.ListHostedZonesByNameOutput) {
-	svc := route53.New(session.New(), &aws.Config{Region: aws.String("eu-west-1")})
+func getAllHostedZones() (resp *route53.ListHostedZonesByNameOutput) {
+	svc := route53.New(session.New(), &aws.Config{Region: aws.String(flagRegion)})
 
 	params := &route53.ListHostedZonesByNameInput{
 		//DNSName:      aws.String(""),
@@ -84,8 +95,8 @@ func getallhostedzones() (resp *route53.ListHostedZonesByNameOutput) {
 	return resp
 }
 
-func gethostedzone(hostzonename string) (resp *route53.ListHostedZonesByNameOutput) {
-	svc := route53.New(session.New(), &aws.Config{Region: aws.String("eu-west-1")})
+func getHostedZone(hostzonename string) (resp *route53.ListHostedZonesByNameOutput) {
+	svc := route53.New(session.New(), &aws.Config{Region: aws.String(flagRegion)})
 
 	params := &route53.ListHostedZonesByNameInput{
 		DNSName: aws.String(hostzonename),
@@ -100,8 +111,8 @@ func gethostedzone(hostzonename string) (resp *route53.ListHostedZonesByNameOutp
 	return resp
 }
 
-func getdnsrecordset(params *route53.ListResourceRecordSetsInput) (resp *route53.ListResourceRecordSetsOutput) {
-	svc := route53.New(session.New(), &aws.Config{Region: aws.String("eu-west-1")})
+func getDNSRecordSet(params *route53.ListResourceRecordSetsInput) (resp *route53.ListResourceRecordSetsOutput) {
+	svc := route53.New(session.New(), &aws.Config{Region: aws.String(flagRegion)})
 
 	resp, err := svc.ListResourceRecordSets(params)
 
@@ -142,59 +153,59 @@ func inputJSONfile(filename string) (resp []byte) {
 	return resp
 }
 
-func getpaginatedresults(hostzone *route53.HostedZone) (zoneoutput *MergedZoneData) {
+func getPaginatedResults(hostzone *route53.HostedZone) (zoneoutput *MergedZoneData) {
 	//base param struct intialise
-	recordset_query_params := &route53.ListResourceRecordSetsInput{}
+	recordsetQueryParams := &route53.ListResourceRecordSetsInput{}
 	zone := &MergedZoneData{}
 
 	//zone := &MergedZoneData{}
 	zone.ZoneFileInfo = *hostzone
 
-	recordset_query_params.HostedZoneId = hostzone.Id
-	zone.ZoneRecordSet = *getdnsrecordset(recordset_query_params)
+	recordsetQueryParams.HostedZoneId = hostzone.Id
+	zone.ZoneRecordSet = *getDNSRecordSet(recordsetQueryParams)
 
 	//set params for pagination
-	recordset_query_params.StartRecordName = zone.ZoneRecordSet.NextRecordName
-	recordset_query_params.StartRecordType = zone.ZoneRecordSet.NextRecordType
+	recordsetQueryParams.StartRecordName = zone.ZoneRecordSet.NextRecordName
+	recordsetQueryParams.StartRecordType = zone.ZoneRecordSet.NextRecordType
 
 	//check results paginated
-	is_trunc := *zone.ZoneRecordSet.IsTruncated
+	isTruncated := *zone.ZoneRecordSet.IsTruncated
 
-	for is_trunc == true {
+	for isTruncated == true {
 
 		results := &MergedZoneData{}
-		results.ZoneRecordSet = *getdnsrecordset(recordset_query_params)
+		results.ZoneRecordSet = *getDNSRecordSet(recordsetQueryParams)
 
 		//append results
 		zone.ZoneRecordSet.ResourceRecordSets = append(zone.ZoneRecordSet.ResourceRecordSets, results.ZoneRecordSet.ResourceRecordSets...)
 
-		recordset_query_params.StartRecordName = results.ZoneRecordSet.NextRecordName
-		recordset_query_params.StartRecordType = results.ZoneRecordSet.NextRecordType
+		recordsetQueryParams.StartRecordName = results.ZoneRecordSet.NextRecordName
+		recordsetQueryParams.StartRecordType = results.ZoneRecordSet.NextRecordType
 
 		if !*results.ZoneRecordSet.IsTruncated {
-			is_trunc = false
+			isTruncated = false
 		}
 	}
 	return zone
 }
 
-func listzone(zonename string) {
+func listZone(zoneName string) {
 	zone := &route53.ListHostedZonesByNameOutput{}
-	if zonename != "" {
-		zone = gethostedzone(zonename)
+	if zoneName != "" {
+		zone = getHostedZone(zoneName)
 	} else {
-		zone = getallhostedzones()
+		zone = getAllHostedZones()
 	}
-	for k, _ := range zone.HostedZones {
-		mzd := getpaginatedresults(zone.HostedZones[k])
+	for k := range zone.HostedZones {
+		mzd := getPaginatedResults(zone.HostedZones[k])
 		printhumanreadable(mzd)
 	}
 }
-func exportrecords() {
-	allzones := getallhostedzones()
+func exportRecords() {
+	allZones := getAllHostedZones()
 
-	for k, v := range allzones.HostedZones {
-		mzd := getpaginatedresults(allzones.HostedZones[k])
+	for k, v := range allZones.HostedZones {
+		mzd := getPaginatedResults(allZones.HostedZones[k])
 		// write JSON to file
 		fmt.Println("Found Host Zone: ", *v.Name)
 		fmt.Println("Number of records found: ", len(mzd.ZoneRecordSet.ResourceRecordSets))
@@ -203,12 +214,12 @@ func exportrecords() {
 	}
 }
 
-func exportrecord(zonename string, filename string) {
+func exportRecord(zonename string, filename string) {
 
-	zone := gethostedzone(zonename)
+	zone := getHostedZone(zonename)
 
 	for k, v := range zone.HostedZones {
-		mzd := getpaginatedresults(zone.HostedZones[k])
+		mzd := getPaginatedResults(zone.HostedZones[k])
 		// write JSON to file
 		fmt.Println("Found Host Zone: ", *v.Name)
 		fmt.Println("Number of records found: ", len(mzd.ZoneRecordSet.ResourceRecordSets))
@@ -223,7 +234,7 @@ func exportrecord(zonename string, filename string) {
 	}
 }
 
-func restorehostedzone(filename string) {
+func restoreHostedZone(filename string) {
 
 	zonedata := &MergedZoneData{}
 	rawcontent := inputJSONfile(filename)
