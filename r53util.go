@@ -33,11 +33,14 @@ Done:
 		switch resp {
 		case "import":
 			if argLength == 3 {
-				//restoreHostedZone(arg[2])
+				loadJSONFile(arg[2], zones)
+				zones.restoreHostedZone()
+
+				//zones.outputJSON()
 				break Done
 			}
 		case "export-all":
-			zones.getHostZones()
+			zones.getHostedZones()
 			zones.getRecordSets()
 			for k := range zones.HostedZone {
 				outputJSONFile(*zones.HostedZone[k].Name+"json", *zones)
@@ -46,9 +49,10 @@ Done:
 		case "export":
 			if argLength == 4 {
 				zones.HostedZoneParams = &route53.ListHostedZonesByNameInput{}
+				fmt.Println("ARG 2: ", arg[2])
 				zones.HostedZoneParams.DNSName = aws.String(arg[2])
 				zones.HostedZoneParams.MaxItems = aws.String("1")
-				zones.getHostZones()
+				zones.getHostedZones()
 				zones.getRecordSets()
 				outputJSONFile(arg[3], *zones)
 				//exportRecord(arg[2], arg[3]
@@ -61,12 +65,12 @@ Done:
 				zones.HostedZoneParams = &route53.ListHostedZonesByNameInput{}
 				zones.HostedZoneParams.DNSName = aws.String(arg[2])
 				zones.HostedZoneParams.MaxItems = aws.String("1")
-				zones.getHostZones()
+				zones.getHostedZones()
 				zones.getRecordSets()
 				zones.outputJSON()
 				break Done
 			} else {
-				zones.getHostZones()
+				zones.getHostedZones()
 				zones.getRecordSets()
 				zones.outputJSON()
 				break Done
@@ -81,17 +85,17 @@ Done:
 			printHelp()
 		}
 	}
-
-}
+} //main
 
 func printHelp() {
-	fmt.Println("Usage: aws_route53_util --region=[AWS REGION] [COMMAND] [OPTION] ")
+	fmt.Println("Usage: r53util [COMMAND] [OPTION] ")
 	fmt.Println(" - import [FILENAME]              *Import route53 host zone JSON file ")
 	fmt.Println(" - export [ZONENAME] [FILENAME]   *Export route53 host zone to a JSON file ")
 	fmt.Println(" - list [OPTIONAL HOSTZONE]       *List all host zones or specific zone details if supplied ")
 	fmt.Println(" - export-all                     *Export all route53 host zones to JSON file ")
 }
 
+//outputJSONFile - Outputs zone data as JSON to file
 func outputJSONFile(filename string, zone ZoneData) {
 	output, err := json.MarshalIndent(zone, "", " ")
 	if err != nil {
@@ -106,8 +110,24 @@ func outputJSONFile(filename string, zone ZoneData) {
 	}
 }
 
-//getHostZones - get host zone by name - this only should only be called once per query
-func (zone *ZoneData) getHostZones() {
+//loadJSONFile - input JSON file to restore
+func loadJSONFile(filename string, zone *ZoneData) {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	err = json.Unmarshal(data, zone)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+}
+
+//getHostedZones - get host zone by name - this only should only be called once per query
+func (zone *ZoneData) getHostedZones() {
 	svc := route53.New(session.New(), &aws.Config{Region: aws.String(flagRegion)})
 	resp, err := svc.ListHostedZonesByName(zone.HostedZoneParams)
 	if err != nil {
@@ -170,6 +190,64 @@ func (zone *ZoneData) getRecordSets() {
 			zone.RecordSets[k].ResourceRecordSets = append(zone.RecordSets[k].ResourceRecordSets, resp.ResourceRecordSets[0])
 		}
 	}
+}
+
+//restoreHostedZone - restoresHostedZone
+func (zone *ZoneData) restoreHostedZone() {
+
+	svc := route53.New(session.New(), &aws.Config{Region: aws.String(flagRegion)})
+
+	params := &route53.CreateHostedZoneInput{
+		CallerReference: aws.String("hostedzonecreated2"),     // Required
+		Name:            aws.String(*zone.HostedZone[0].Name), // Required
+		//DelegationSetId: aws.String(""),
+		//HostedZoneConfig: zone.HostedZone[0].Config,
+		//VPC:              &route53.VPC{
+		//VPCId:     aws.String("VPCId"),
+		//VPCRegion: aws.String("VPCRegion"),
+		//},
+	}
+
+	resp, err := svc.CreateHostedZone(params)
+
+	if err != nil {
+		// Print the error, cast err to awserr.Error to get the Code and
+		// Message from an error.
+		fmt.Println(err.Error())
+		return
+	}
+
+	fmt.Println(resp)
+}
+
+//restoreRecordSet - restores record set to Zone
+func (zone *ZoneData) restoreRecordSet() {
+	svc := route53.New(session.New())
+
+	params := &route53.ChangeResourceRecordSetsInput{
+		ChangeBatch: &route53.ChangeBatch{ // Required
+			Changes: []*route53.Change{ // Required
+				{ // Required
+					Action:            aws.String("ChangeAction"), // Required
+					ResourceRecordSet: zone.RecordSets[0].ResourceRecordSets[0],
+				},
+				// More values...
+			},
+			Comment: aws.String("ResourceDescription"),
+		},
+		HostedZoneId: aws.String(*zone.HostedZone[0].Id), // Required
+	}
+	resp, err := svc.ChangeResourceRecordSets(params)
+
+	if err != nil {
+		// Print the error, cast err to awserr.Error to get the Code and
+		// Message from an error.
+		fmt.Println(err.Error())
+		return
+	}
+
+	// Pretty-print the response data.
+	fmt.Println(resp)
 }
 
 //outputJSON - output pretty JSON to stdout
