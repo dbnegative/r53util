@@ -13,10 +13,6 @@ import (
 
 var flagRegion string
 
-//func init() {
-//	flag.StringVar(&flagRegion, "region", "", "Set's AWS region (REQUIRED)")
-//}
-
 //ZoneData - Custom Struct containing the HostedZone information and Record sets
 type ZoneData struct {
 	HostedZone       []*route53.HostedZone
