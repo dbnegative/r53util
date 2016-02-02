@@ -77,6 +77,7 @@ Done:
 				zones.getHostedZones()
 				zones.getRecordSets()
 				zones.outputJSON()
+				zones.printHumanReadable()
 				break Done
 			} else {
 				zones.getHostedZones()
@@ -134,7 +135,7 @@ func loadJSONFile(filename string, zone *ZoneData) {
 
 //getHostedZones - Get host zone by name - this only should only be called once per query
 func (zone *ZoneData) getHostedZones() {
-	svc := route53.New(session.New(), &aws.Config{Region: aws.String(flagRegion)})
+	svc := route53.New(session.New())
 	resp, err := svc.ListHostedZonesByName(zone.HostedZoneParams)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -149,7 +150,7 @@ func (zone *ZoneData) getHostedZones() {
 
 //getRecordSets - Get all recordsets from associated host zones
 func (zone *ZoneData) getRecordSets() {
-	svc := route53.New(session.New(), &aws.Config{Region: aws.String(flagRegion)})
+	svc := route53.New(session.New())
 	//Initialise
 	zone.RecordSetsParams = make([]*route53.ListResourceRecordSetsInput, len(zone.HostedZone))
 	for k := range zone.HostedZone {
@@ -185,7 +186,7 @@ func (zone *ZoneData) getRecordSets() {
 
 //restoreHostedZone - Restores a Hosted Zone
 func (zone *ZoneData) restoreHostedZone() {
-	svc := route53.New(session.New(), &aws.Config{Region: aws.String(flagRegion)})
+	svc := route53.New(session.New())
 	params := &route53.CreateHostedZoneInput{
 		CallerReference: aws.String(randStringBytes(5)),       // Required
 		Name:            aws.String(*zone.HostedZone[0].Name), // Required
@@ -213,8 +214,10 @@ func (zone *ZoneData) restoreHostedZone() {
 
 //restoreRecordSet - Restores record set to Zone
 func (zone *ZoneData) restoreRecordSet() {
+
 	svc := route53.New(session.New())
 	rrchanges := make([]*route53.Change, len(zone.RecordSets[0].ResourceRecordSets))
+
 	//Populate the batch of change requests
 	for k := range zone.RecordSets[0].ResourceRecordSets {
 		//These are normally auto generated but allow for custom settings thus they are overwritten
@@ -243,7 +246,9 @@ func (zone *ZoneData) restoreRecordSet() {
 		},
 		HostedZoneId: aws.String(*zone.HostedZone[0].Id), // Required
 	}
+
 	resp, err := svc.ChangeResourceRecordSets(params)
+
 	if err != nil {
 		// Print the error, cast err to awserr.Error to get the Code and
 		// Message from an error.
@@ -270,4 +275,12 @@ func randStringBytes(n int) string {
 		b[i] = letterBytes[rand.Intn(len(letterBytes))]
 	}
 	return string(b)
+}
+
+func (zone *ZoneData) printHumanReadable() {
+	for k := range zone.HostedZone {
+		for _, iv := range zone.RecordSets[k].ResourceRecordSets {
+			fmt.Printf("%6s  %6s    %6s\n", *iv.Name, *iv.Type, *iv.ResourceRecords[0].Value)
+		}
+	}
 }
