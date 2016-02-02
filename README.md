@@ -12,34 +12,33 @@ Export AWS route53 hosted zones and DNS record set. Each hosted zone is saved as
   go get -u github.com/aws/aws-sdk-go
   ```
 -  Build:
-  ``` go build aws_route53_util.go ```
+  ``` go build r53util.go ```
 
 ##Usage
 Make sure that AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY enviromental vars have been set
 ### Export all hosted zones
 ```
-./aws_route53_util --region=us-east-1 export-all
+./r53util  export-all
 ```
 ### Export single hosted zone to file
 ```
-./aws_route53_util --region=us-east-1 export [domain] [output filename]
-./aws_route53_util --region=us-east-1 export example.com /tmp/mydata.json
+./r53util export [domain] [output filename]
+./r53util export example.com /tmp/mydata.json
 ```
 ### List all hosted zones and records in human readable format to stdout
 ```
-./aws_route53_util --region=eu-west-1 list
+./r53util  list
 ```
 ### List specified host zone in human readable format to stdout
 ```
-./aws_route53_util --region=eu-west-1 list example.com
+./r53util  list example.com
 ```
 ### Import JSON hosted zone file (Not Implemented yet)
 ```
-./aws_route53_util --region=eu-west-1 import [input filename]
-./aws_route53_util --region=eu-west-1 import example.com.json
+./r53util import [input filename]
+./r53util import example.com.json
 ```
 #Todo
-- add region support currently defaulting to eu-west-1
 - list currently returns incorrect results when invalid hostzone name is supplied, should error out
 - check if host zone exists for import
 - add import  function to import and recreate records in route53
