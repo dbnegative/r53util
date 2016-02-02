@@ -3,7 +3,8 @@
 Why this when I can use the AWS cli? Laziness and because it's a self-contained binary. I needed this functionality when automating host zone creation and updating.
 
 ## Current Functionality
-Export AWS route53 hosted zones and DNS record set. Each hosted zone is saved as a separate JSON file that contains the hosted zone information and complete dns record set.
+* Export AWS Route53 hosted zones and DNS record sets. Each hosted zone and associated record sets are combined as a separate JSON file
+* List AWS Route53 zone/zones and associated recordsets
 
 ##Build
 -  Clone the repo

@@ -23,8 +23,10 @@ type ZoneData struct {
 
 func main() {
 
+	//get cmdline args
 	arg := os.Args
 	argLength := len(arg)
+
 	//intialise
 	zones := &ZoneData{}
 
@@ -87,6 +89,7 @@ Done:
 	}
 } //main
 
+//printHelp - Prints out help menu
 func printHelp() {
 	fmt.Println("Usage: r53util [COMMAND] [OPTION] ")
 	fmt.Println(" - import [FILENAME]              *Import route53 host zone JSON file ")
@@ -110,7 +113,7 @@ func outputJSONFile(filename string, zone ZoneData) {
 	}
 }
 
-//loadJSONFile - input JSON file to restore
+//loadJSONFile - Input JSON file to restore
 func loadJSONFile(filename string, zone *ZoneData) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -123,10 +126,9 @@ func loadJSONFile(filename string, zone *ZoneData) {
 		fmt.Println(err.Error())
 		return
 	}
-
 }
 
-//getHostedZones - get host zone by name - this only should only be called once per query
+//getHostedZones - Get host zone by name - this only should only be called once per query
 func (zone *ZoneData) getHostedZones() {
 	svc := route53.New(session.New(), &aws.Config{Region: aws.String(flagRegion)})
 	resp, err := svc.ListHostedZonesByName(zone.HostedZoneParams)
@@ -142,7 +144,7 @@ func (zone *ZoneData) getHostedZones() {
 	}
 }
 
-//getRecordSets - get all recordsets from associated host zones
+//getRecordSets - Get all recordsets from associated host zones
 func (zone *ZoneData) getRecordSets() {
 
 	svc := route53.New(session.New(), &aws.Config{Region: aws.String(flagRegion)})
@@ -192,7 +194,7 @@ func (zone *ZoneData) getRecordSets() {
 	}
 }
 
-//restoreHostedZone - restoresHostedZone
+//restoreHostedZone - Restores a Hosted Zone
 func (zone *ZoneData) restoreHostedZone() {
 
 	svc := route53.New(session.New(), &aws.Config{Region: aws.String(flagRegion)})
@@ -220,7 +222,7 @@ func (zone *ZoneData) restoreHostedZone() {
 	fmt.Println(resp)
 }
 
-//restoreRecordSet - restores record set to Zone
+//restoreRecordSet - Restores record set to Zone
 func (zone *ZoneData) restoreRecordSet() {
 	svc := route53.New(session.New())
 
@@ -250,7 +252,7 @@ func (zone *ZoneData) restoreRecordSet() {
 	fmt.Println(resp)
 }
 
-//outputJSON - output pretty JSON to stdout
+//outputJSON - Output pretty JSON to stdout
 func (zone *ZoneData) outputJSON() {
 	for k := range zone.HostedZone {
 		hostZoneOutput, _ := json.MarshalIndent(zone.HostedZone[k], "", " ")
