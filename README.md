@@ -1,4 +1,4 @@
-# AWS Route53 Utility
+# AWS Route53 Utility [![CircleCI](https://circleci.com/gh/dbnegative/r53util.svg?style=svg)](https://circleci.com/gh/dbnegative/r53util)
 ##Why?
 Why this when I can use the AWS cli? Laziness and because it's a self-contained binary. I needed this functionality when automating host zone creation and updating.
 
